@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web MIDI</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+</head>
+<body class="bg-dark">
+    <div class="container bg-light">
+        <div class="row bg-dark text-center">
+            <div class="col-12 h2 text-white p-4">
+                🥁 Web MIDI playground 🥁
+            </div>
+        </div>
+        <div class="row alert alert-warning" id="noKeyboardConnectedAlert">
+            <div class="col-sm-12">
+                No MIDI keyboard detected. Please connect a <a href="https://en.wikipedia.org/wiki/MIDI_keyboard">MIDI keyboard</a>.
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="offset-md-3">
+            </div>
+            <div class="col-sm-12 col-md-6">
+                <div class="form-group">
+                    <label>Wave type</label>
+                    <select class="form-control" id="waveType">
+                        <option value="Sawtooth">Sawtooth</option>
+                        <option value="Sine">Sine</option>
+                        <option value="Square">Square</option>
+                        <option value="Triangle">Triangle</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="baseFrequency">Base Frequency</label> <span class="badge badge-primary badge-pill"><output>440</output></span>
+                    <input class="form-control" name="baseFrequency" id="baseFrequency" type="range" min="100" max="1000" value="440" step="20" />
+                </div>
+                <div class="form-group">
+                    <label for="sweepLength">Sweep Length</label> <span class="badge badge-primary badge-pill"><output>1</output></span>
+                    <input class="form-control" name="sweep" id="sweepLength" type="range" min="1" max="10" value="1" step="1" />
+                </div>
+                <div class="form-group">
+                    <label for="attack">Attack</label> <span class="badge badge-primary badge-pill"><output>0.2</output></span>
+                    <input class="form-control" name="attack" id="attack" type="range" min="0" max="1" value="0.2" step="0.1" />
+                </div>
+                <div class="form-group"> 
+                    <label for="release">Release</label> <span class="badge badge-primary badge-pill"><output>0.5</output></span>
+                    <input class="form-control" name="release" id="release" type="range" min="0" max="1" value="0.5" step="0.1" />
+                </div>
+                <div class="form-group text-center">
+                    <button class="btn btn-lg btn-success" id="playPauseButton">Play</button>
+                    <button class="btn btn-lg btn-primary" id="recordButton" disabled>Record</button>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="offset-md-3">
+            </div>
+            <div class="col-sm-12 col-md-6 border">
+                <span class="h3">Events</span>
+                <pre><code id="eventLog"></code></pre>
+            </div>
+        </div>
+        <div class="row">
+            <div class="offset-md-3">
+            </div>
+            <div class="col-sm-12 col-md-6">
+                <span class="h3">Recordings</span>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Length</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsView">
+                        <!-- Recordings will be added here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <template id="NoRecordings">
+        <tr>
+            <td colspan="4" class="text-center">No recordings</td>
+        </tr>
+    </template>
+    <template id="RecordingItem">
+        <tr>
+            <td data-name></td>
+            <td data-length></td>
+            <td data-duration></td>
+            <td><button class="play" data-play>Play</button></td>
+        </tr>
+    </template>
+</body>
+<script src="./wave-tables/05_Pulse"></script>
+<script src="./app.js"></script>
+</html>
