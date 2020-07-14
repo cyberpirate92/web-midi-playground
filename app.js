@@ -18,7 +18,7 @@ let attackTime = 0.2;
 let releaseTime = 0.5;
 let baseFrequency = 440;
 let isPlaying = false;
-let selectedWaveType = 'sawtooth';
+let selectedWaveType = 'custom';
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const Notes = ['C', 'C#/D♭', 'D', 'D#/E♭', 'E', 'F', 'F#/G♭', 'G', 'G#/A♭', 'A', 'A#/B♭', 'B'];
 
@@ -28,6 +28,9 @@ const TEMPLATES = {
 };
 
 let isRecording = false;
+
+/** @type {number} */
+let animationFrameRequest;
 
 /**
  * Temporary buffer for storing the 
@@ -45,6 +48,8 @@ let currentRecording;
  * */
 let records = [];
 
+// These values are for Arturia MiniLab mkII
+// Values might differ for other MIDI keyboards
 const MIDI_MESSAGE_TYPE = {
     DRUMPAD_HOLD: 153,
     DRUMPAD_RELEASE: 137,
@@ -80,8 +85,23 @@ let wave;
 /** @type {AudioContext} */
 let audioCtx;
 
+/** @type {AnalyserNode} */
+let analyser;
+
 /** @type {HTMLElement} */
 let eventLog;
+
+/** @type {HTMLCanvasElement} */
+let canvas;
+
+/** @type {CanvasRenderingContext2D} */
+let canvasContext;
+
+/** @type {Uint8Array} */
+let dataArray;
+
+/** @type {number} */
+let bufferLength;
 
 updateRecordsView();
 
@@ -93,16 +113,30 @@ waveTypeDropdown = document.querySelector('#waveType');
 playPauseButton = document.querySelector('#playPauseButton');
 recordButton = document.querySelector('#recordButton');
 eventLog = document.querySelector('#eventLog');
+canvas = document.querySelector('#waveform');
+canvasContext = canvas.getContext('2d');
+
+window.addEventListener('resize', () => {
+    // updateCanvasSize();
+});
 
 playPauseButton.addEventListener('click', () => {
     if (!isPlaying) {
         audioCtx = new AudioContext();
-        // wave = audioCtx.createPeriodicWave(wavetable.real, wavetable.imag);
+        analyser = audioCtx.createAnalyser();
+        if (!dataArray || dataArray.length != analyser.frequencyBinCount) {
+            bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        }
+        analyser.fftSize = 2048;
+        analyser.getByteTimeDomainData(dataArray);
+        startOscilloscope();
         playPauseButton.textContent = "Pause";
         playPauseButton.classList.remove('btn-success');
         playPauseButton.classList.add('btn-danger');
         recordButton.disabled = false;
     } else {
+        stopOscilloscope();
         audioCtx && audioCtx.close();
         playPauseButton.textContent = "Play";
         playPauseButton.classList.remove('btn-danger');
@@ -189,29 +223,35 @@ function stopRecording() {
  */
 function playSweep(noteFrequency) {
     let osc = audioCtx.createOscillator();
-    //osc.setPeriodicWave(wave);
-    osc.type = selectedWaveType;
-    osc.frequency.value = noteFrequency;
+    osc.connect(analyser);
+    if (selectedWaveType === 'custom') {
+        wave = audioCtx.createPeriodicWave(wavetable.real, wavetable.imag);
+        osc.setPeriodicWave(wave);
+    } else {
+        osc.type = selectedWaveType;
+        osc.frequency.value = noteFrequency;
+    }
     
     let sweepEnv = audioCtx.createGain();
-    sweepEnv.gain.cancelScheduledValues(audioCtx.currentTime);
-    sweepEnv.gain.setValueAtTime(0, audioCtx.currentTime);
+    sweepEnv.gain.cancelAndHoldAtTime(audioCtx.currentTime);
+    // sweepEnv.gain.cancelScheduledValues(audioCtx.currentTime);
+    //sweepEnv.gain.setValueAtTime(0, audioCtx.currentTime);
     // set our attack
-    sweepEnv.gain.linearRampToValueAtTime(1, audioCtx.currentTime + attackTime);
+    //sweepEnv.gain.linearRampToValueAtTime(1, audioCtx.currentTime + attackTime);
     // set our release
-    sweepEnv.gain.linearRampToValueAtTime(0, audioCtx.currentTime + sweepLength - releaseTime);
+    // sweepEnv.gain.linearRampToValueAtTime(0, audioCtx.currentTime + sweepLength - releaseTime);
     
     osc.connect(sweepEnv).connect(audioCtx.destination);
     osc.start();
-    // osc.stop(audioCtx.currentTime + sweepLength);
+    osc.stop(audioCtx.currentTime + sweepLength);
 }
 
 // The first value is an identifier: Knobs, Keys, drumpads, etc 
 // The second value is the note
-// The third value is the velocity (I'm guessing)
+// The third value is the velocity key press (I'm guessing)
 function onMIDIMessage( event ) {
-    var str = "MIDI message received at timestamp " + (event.timestamp || 'Unknown') + "[" + event.data.length + " bytes]: ";
-    for (var i=0; i<event.data.length; i++) {
+    let str = "MIDI message received at timestamp " + (event.timestamp || 'Unknown') + "[" + event.data.length + " bytes]: ";
+    for (let i=0; i<event.data.length; i++) {
         str += "0x" + event.data[i].toString(16) + " ";
     }
     
@@ -234,6 +274,7 @@ function onMIDIMessage( event ) {
                 currentRecording.sequence.push({noteNumber, noteName, noteFrequency});
             }
             typeName = 'Key Press';
+            logEvent(`Key press: ${noteName}, Frequency: ${noteFrequency}`);
             break;
         case MIDI_MESSAGE_TYPE.KEY_RELEASE:
             typeName = 'Key Release';
@@ -383,6 +424,51 @@ function logEvent(message) {
     console.log(message);
     const timeNow = (new Date()).toTimeString().substring(0, 8);
     let row = document.createElement('div');
-    row.textContent = `${timeNow}: ${message}`;
-    eventLog.appendChild(row);
+    let bold = document.createElement('b');
+    let span = document.createElement('span');
+    bold.textContent = `${timeNow}: `;
+    span.textContent = `${message}`;
+    row.appendChild(bold);
+    row.appendChild(span);
+    eventLog.prepend(row);
+}
+
+function stopOscilloscope() {
+    window.cancelAnimationFrame(animationFrameRequest);
+}
+
+/**
+ * Draw oscilloscope for current audio source on the canvas
+ */
+function startOscilloscope() {
+  animationFrameRequest = window.requestAnimationFrame(startOscilloscope);
+  analyser.getByteTimeDomainData(dataArray);
+
+  canvasContext.fillStyle = "rgb(0, 0, 0)";
+  canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+
+  canvasContext.lineWidth = 2;
+  canvasContext.strokeStyle = "rgb(0, 225, 0)";
+
+  canvasContext.beginPath();
+
+  let sliceWidth = canvas.width * 1.0 / bufferLength;
+  let x = 0;
+
+  for (let i = 0; i < bufferLength; i++) {
+
+    let v = dataArray[i] / 128.0;
+    let y = v * canvas.height / 2;
+
+    if (i === 0) {
+      canvasContext.moveTo(x, y);
+    } else {
+      canvasContext.lineTo(x, y);
+    }
+
+    x += sliceWidth;
+  }
+
+  canvasContext.lineTo(canvas.width, canvas.height / 2);
+  canvasContext.stroke();
 }

@@ -1,4 +1,4 @@
-{
+const wavetable = {
 'real': [
 0.000000,
 0.003915,

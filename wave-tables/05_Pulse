@@ -1,4 +1,4 @@
-let wavetable = {
+const wavetable = {
 'real': [
 1.000000,
 1.000000,

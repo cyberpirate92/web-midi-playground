@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web MIDI</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <style>
+        .waveform-container {
+            max-height: 150px;
+        }
+        .mh-300 {
+            max-height: 300px;
+            overflow: auto;
+        }
+    </style>
 </head>
 <body class="bg-dark">
     <div class="container bg-light">
@@ -18,7 +27,15 @@
                 No MIDI keyboard detected. Please connect a <a href="https://en.wikipedia.org/wiki/MIDI_keyboard">MIDI keyboard</a>.
             </div>
         </div>
-        <div class="row mt-4">
+        <div class="row border mt-4">
+            <div class="offset-md-3">
+            </div>
+            <div class="col-sm-12 waveform-container text-center">
+                <canvas id="waveform">
+                </canvas>
+            </div>
+        </div>
+        <div class="row">
             <div class="offset-md-3">
             </div>
             <div class="col-sm-12 col-md-6">
@@ -29,6 +46,7 @@
                         <option value="Sine">Sine</option>
                         <option value="Square">Square</option>
                         <option value="Triangle">Triangle</option>
+                        <option value="custom" selected>Custom</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -58,7 +76,7 @@
             </div>
             <div class="col-sm-12 col-md-6 border">
                 <span class="h3">Events</span>
-                <pre><code id="eventLog"></code></pre>
+                <pre class="mh-300"><code id="eventLog"></code></pre>
             </div>
         </div>
         <div class="row">
@@ -96,6 +114,6 @@
         </tr>
     </template>
 </body>
-<script src="./wave-tables/05_Pulse"></script>
+<script src="./wave-tables/Trombone"></script>
 <script src="./app.js"></script>
 </html>
